@@ -1,21 +1,72 @@
 from datetime import datetime
-from typing import Optional, List
-from pydantic import BaseModel, Field, ConfigDict
+from typing import Optional, List, Union
+from pydantic import BaseModel, Field, ConfigDict, field_validator
 
 
 class TicketCreate(BaseModel):
     title: str = Field(..., min_length=3, max_length=200)
     description: str = Field(..., min_length=5)
-    category: Optional[str] = Field(None, pattern="^(Hardware|Software|Network|Access|Other)$")
-    priority: Optional[str] = Field(None, pattern="^(LOW|MEDIUM|HIGH|CRITICAL)$")
-    asset_id: Optional[int] = None
+    category: Optional[str] = None
+    priority: Optional[str] = None
+    asset_id: Optional[Union[int, str]] = None
+
+    @field_validator("category", mode="before")
+    @classmethod
+    def clean_category(cls, v):
+        if not v or not str(v).strip():
+            return None
+        val = str(v).strip().title()
+        if val in {"Hardware", "Software", "Network", "Access", "Other"}:
+            return val
+        return "Other"
+
+    @field_validator("priority", mode="before")
+    @classmethod
+    def clean_priority(cls, v):
+        if not v or not str(v).strip():
+            return None
+        val = str(v).strip().upper()
+        if val in {"LOW", "MEDIUM", "HIGH", "CRITICAL"}:
+            return val
+        return "MEDIUM"
+
+    @field_validator("asset_id", mode="before")
+    @classmethod
+    def clean_asset_id(cls, v):
+        if v is None or v == "" or v == 0 or v == "0":
+            return None
+        try:
+            val = int(v)
+            return val if val > 0 else None
+        except (ValueError, TypeError):
+            return None
 
 
 class TicketUpdate(BaseModel):
     title: Optional[str] = None
     description: Optional[str] = None
-    category: Optional[str] = Field(None, pattern="^(Hardware|Software|Network|Access|Other)$")
-    priority: Optional[str] = Field(None, pattern="^(LOW|MEDIUM|HIGH|CRITICAL)$")
+    category: Optional[str] = None
+    priority: Optional[str] = None
+
+    @field_validator("category", mode="before")
+    @classmethod
+    def clean_category(cls, v):
+        if not v or not str(v).strip():
+            return None
+        val = str(v).strip().title()
+        if val in {"Hardware", "Software", "Network", "Access", "Other"}:
+            return val
+        return "Other"
+
+    @field_validator("priority", mode="before")
+    @classmethod
+    def clean_priority(cls, v):
+        if not v or not str(v).strip():
+            return None
+        val = str(v).strip().upper()
+        if val in {"LOW", "MEDIUM", "HIGH", "CRITICAL"}:
+            return val
+        return "MEDIUM"
 
 
 class TicketAssignRequest(BaseModel):

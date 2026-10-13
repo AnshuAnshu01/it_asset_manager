@@ -268,10 +268,21 @@ export default function TicketsPage() {
 
   const load = () => {
     setLoading(true);
-    ticketsAPI.list().then(r => setTickets(r.data)).catch(() => {}).finally(() => setLoading(false));
+    ticketsAPI.list().then(r => {
+      const sorted = [...(r.data || [])].sort((a, b) => {
+        const dateA = toLocalDate(a.created_at)?.getTime() || 0;
+        const dateB = toLocalDate(b.created_at)?.getTime() || 0;
+        return dateB - dateA;
+      });
+      setTickets(sorted);
+    }).catch(() => {}).finally(() => setLoading(false));
   };
 
   useEffect(load, []);
+
+  useEffect(() => {
+    if (wsHook.lastEvent) load();
+  }, [wsHook.lastEvent]);
 
   const filtered = tickets.filter(t => {
     const q = search.toLowerCase();
@@ -334,7 +345,7 @@ export default function TicketsPage() {
             </div>
             <div className="flex gap-2">
               <button className="btn btn-secondary btn-sm" onClick={load}><RefreshCw size={14} /></button>
-              {(auth.isEmployee || auth.isAdmin) && (
+              {(auth.isEmployee || auth.isAdmin || auth.isSupport) && (
                 <button className="btn btn-primary btn-sm" onClick={() => setShowCreate(true)}>
                   <Plus size={14} /> New Ticket
                 </button>

@@ -4,6 +4,7 @@ import {
   LogOut, Settings, Shield, Laptop
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import logoImg from '../assets/logo.png';
 import toast from 'react-hot-toast';
 
 function NavItem({ to, icon: Icon, label }) {
@@ -33,10 +34,12 @@ export default function Sidebar() {
   return (
     <aside className="sidebar">
       <div className="sidebar-brand">
-        <div className="sidebar-brand-icon">🖥️</div>
+        <div className="sidebar-brand-icon">
+          <img src={logoImg} alt="Sahana Logo" className="brand-logo-img" />
+        </div>
         <div className="sidebar-brand-text">
-          <h2>IT ASSET MGR</h2>
-          <span>Management System</span>
+          <h2 className="brand-title-yellow">Sahana IT</h2>
+          <span className="brand-subtitle-yellow">Support System</span>
         </div>
       </div>
 

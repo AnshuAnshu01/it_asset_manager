@@ -36,7 +36,7 @@ def list_tickets(
     elif current_user.role == "SUPPORT":
         query = query.filter(Ticket.assigned_to_id == current_user.id)
 
-    return query.all()
+    return query.order_by(Ticket.created_at.desc(), Ticket.id.desc()).all()
 
 
 @router.get("/{ticket_id}", response_model=TicketResponse)
@@ -66,12 +66,24 @@ def get_ticket(
 
 
 @router.post("/", response_model=TicketResponse, status_code=201)
-def add_ticket(
+async def add_ticket(
     data: TicketCreate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_roles("EMPLOYEE", "ADMIN")),
+    current_user: User = Depends(get_current_user),
 ):
-    return create_ticket(db, current_user, data)
+    ticket = create_ticket(db, current_user, data)
+    try:
+        from app.api.websocket import ws_manager
+        await ws_manager.broadcast({
+            "event": "TICKET_CREATED",
+            "ticket_number": ticket.ticket_number,
+            "title": ticket.title,
+            "priority": ticket.priority,
+            "created_at": ticket.created_at.isoformat() if ticket.created_at else None,
+        })
+    except Exception:
+        pass
+    return ticket
 
 
 @router.put("/{ticket_id}", response_model=TicketResponse)

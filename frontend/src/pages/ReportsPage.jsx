@@ -8,10 +8,10 @@ import {
 } from 'recharts';
 import { TrendingUp, AlertTriangle, CheckCircle, BarChart3 } from 'lucide-react';
 
-const PALETTE = ['#6366f1', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#3b82f6', '#ec4899'];
-const STATUS_COLORS = { OPEN: '#6366f1', ASSIGNED: '#f59e0b', IN_PROGRESS: '#3b82f6', RESOLVED: '#10b981', CLOSED: '#94a3b8' };
+const PALETTE = ['#eab308', '#10b981', '#3b82f6', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'];
+const STATUS_COLORS = { OPEN: '#eab308', ASSIGNED: '#f59e0b', IN_PROGRESS: '#3b82f6', RESOLVED: '#10b981', CLOSED: '#94a3b8' };
 const PRIORITY_COLORS = { LOW: '#10b981', MEDIUM: '#f59e0b', HIGH: '#ef4444', CRITICAL: '#dc2626' };
-const ASSET_COLORS = { AVAILABLE: '#10b981', ASSIGNED: '#6366f1', UNDER_REPAIR: '#f59e0b', RETIRED: '#94a3b8', LOST: '#ef4444' };
+const ASSET_COLORS = { AVAILABLE: '#10b981', ASSIGNED: '#eab308', UNDER_REPAIR: '#f59e0b', RETIRED: '#94a3b8', LOST: '#ef4444' };
 
 const Tip = ({ active, payload, label }) => {
   if (!active || !payload?.length) return null;

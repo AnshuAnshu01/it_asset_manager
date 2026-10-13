@@ -4,6 +4,8 @@ from typing import List, Optional, Tuple
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
+import uuid
+from app.models.asset import Asset
 from app.models.ticket import Ticket, TicketHistory, TicketStatus
 from app.models.user import User
 from app.schemas.ticket import TicketCreate, TicketUpdate
@@ -53,14 +55,37 @@ def classify_ticket(title: str, description: str) -> Tuple[str, str]:
 def create_ticket(db: Session, user: User, data):
     category, priority = classify_ticket(data.title, data.description)
 
-    if getattr(data, "category", None) in CATEGORIES:
-        category = data.category
+    cat_candidate = getattr(data, "category", None)
+    if cat_candidate:
+        cat_str = str(cat_candidate).strip().title()
+        if cat_str in CATEGORIES:
+            category = cat_str
 
-    if getattr(data, "priority", None) in PRIORITIES:
-        priority = data.priority
+    pri_candidate = getattr(data, "priority", None)
+    if pri_candidate:
+        pri_str = str(pri_candidate).strip().upper()
+        if pri_str in PRIORITIES:
+            priority = pri_str
 
     now = datetime.utcnow()
-    ticket_num = f"INC-{now.strftime('%Y%m%d%H%M%S%f')[:16]}"
+    ticket_num = f"INC-{now.strftime('%Y%m%d%H%M%S%f')}"
+    # Guard against rare ticket number collision
+    if db.query(Ticket.id).filter(Ticket.ticket_number == ticket_num).first():
+        ticket_num = f"INC-{now.strftime('%Y%m%d%H%M%S')}-{uuid.uuid4().hex[:4].upper()}"
+
+    # Safely validate asset_id to prevent PostgreSQL foreign key constraint violation
+    asset_id = getattr(data, "asset_id", None)
+    if asset_id is not None:
+        try:
+            asset_id = int(asset_id)
+            if asset_id <= 0:
+                asset_id = None
+            else:
+                asset_exists = db.query(Asset.id).filter(Asset.id == asset_id).first()
+                if not asset_exists:
+                    asset_id = None
+        except (ValueError, TypeError):
+            asset_id = None
 
     ticket = Ticket(
         ticket_number=ticket_num,
@@ -69,36 +94,40 @@ def create_ticket(db: Session, user: User, data):
         category=category,
         priority=priority,
         created_by_id=user.id,
-        asset_id=getattr(data, "asset_id", None),
+        asset_id=asset_id,
         status="OPEN",
         sla_deadline=calculate_sla_deadline(priority, now),
         created_at=now,
     )
 
-    db.add(ticket)
-    db.flush()
+    try:
+        db.add(ticket)
+        db.flush()
 
-    db.add(
-        TicketHistory(
-            ticket_id=ticket.id,
-            action="CREATED",
-            new_status="OPEN",
-            comments=f"Ticket created with category {category} and priority {priority}",
-            creator_name=user.name,
-            creator_user_code=user.user_code,
+        db.add(
+            TicketHistory(
+                ticket_id=ticket.id,
+                action="CREATED",
+                new_status="OPEN",
+                comments=f"Ticket created with category {category} and priority {priority}",
+                creator_name=user.name,
+                creator_user_code=user.user_code,
+            )
         )
-    )
 
-    ActivityLogRepository(db).log(
-        action="TICKET_CREATED",
-        user_id=user.id,
-        ticket_id=ticket.id,
-        details=f"Ticket {ticket.ticket_number} created: '{ticket.title}' [{category}/{priority}]",
-    )
+        ActivityLogRepository(db).log(
+            action="TICKET_CREATED",
+            user_id=user.id,
+            ticket_id=ticket.id,
+            details=f"Ticket {ticket.ticket_number} created: '{ticket.title}' [{category}/{priority}]",
+        )
 
-    db.commit()
-    db.refresh(ticket)
-    return ticket
+        db.commit()
+        db.refresh(ticket)
+        return ticket
+    except Exception as e:
+        db.rollback()
+        raise e
 
 
 def assign_ticket(db: Session, ticket: Ticket, support_user: User, actor: Optional[User] = None):

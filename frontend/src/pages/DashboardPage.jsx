@@ -21,7 +21,7 @@ const toLocalDate = (dateStr) => {
   return new Date(normalized);
 };
 
-const COLORS = ['#6366f1', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#3b82f6'];
+const COLORS = ['#eab308', '#10b981', '#3b82f6', '#f59e0b', '#ef4444', '#8b5cf6'];
 
 const CustomTooltip = ({ active, payload, label }) => {
   if (!active || !payload?.length) return null;
@@ -79,6 +79,20 @@ export default function DashboardPage() {
       assetsAPI.list().then(r => setMyAssets(r.data.filter(a => a.assigned_to_id === user.id))).catch(() => {});
     }
   }, [user]);
+
+  useEffect(() => {
+    if (lastEvent) {
+      ticketsAPI.list().then(r => setTickets(r.data)).catch(() => {});
+    }
+  }, [lastEvent]);
+
+  const recentTickets = [...tickets]
+    .sort((a, b) => {
+      const dateA = toLocalDate(a.created_at)?.getTime() || 0;
+      const dateB = toLocalDate(b.created_at)?.getTime() || 0;
+      return dateB - dateA;
+    })
+    .slice(0, 5);
 
   const byStatusData = reports.tickets
     ? Object.entries(reports.tickets.by_status).map(([k, v]) => ({ name: k, value: v }))
@@ -138,7 +152,7 @@ export default function DashboardPage() {
             <div className="card-header">
               <div>
                 <div className="card-title">Recent Tickets</div>
-                <div className="card-subtitle">Latest {Math.min(tickets.length, 5)} tickets</div>
+                <div className="card-subtitle">Latest {Math.min(recentTickets.length, 5)} tickets</div>
               </div>
             </div>
             <div className="card-body">
@@ -150,7 +164,7 @@ export default function DashboardPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {tickets.slice(0, 5).map(t => (
+                    {recentTickets.map(t => (
                       <tr key={t.id}>
                         <td><span style={{ color: 'var(--accent)', fontFamily: 'monospace', fontWeight: 600 }}>{t.ticket_number}</span></td>
                         <td className="td-primary">{t.title}</td>
@@ -166,7 +180,7 @@ export default function DashboardPage() {
                         </td>
                       </tr>
                     ))}
-                    {tickets.length === 0 && (
+                    {recentTickets.length === 0 && (
                       <tr><td colSpan={6} style={{ textAlign: 'center', padding: 32, color: 'var(--text-muted)' }}>No tickets found</td></tr>
                     )}
                   </tbody>
