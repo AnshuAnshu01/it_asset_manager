@@ -26,6 +26,7 @@ from app.schemas.ticket import (
     TicketReportResponse,
     AssetReportResponse,
     SLAReportResponse,
+    ActivityLogResponse,
 )
 
 __all__ = [
@@ -52,4 +53,5 @@ __all__ = [
     "TicketReportResponse",
     "AssetReportResponse",
     "SLAReportResponse",
+    "ActivityLogResponse",
 ]

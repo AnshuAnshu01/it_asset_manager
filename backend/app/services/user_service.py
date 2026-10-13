@@ -25,36 +25,74 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
     return bcrypt.checkpw(plain_password.encode("utf-8"), hashed_password.encode("utf-8"))
 
 
-def create_user(db: Session, data: UserCreate) -> User:
-    """Standalone create user function."""
+def create_user(db: Session, data: UserCreate, admin: Optional[User] = None) -> User:
+    """Create user with validation and activity logging."""
     service = UserService(db)
-    user_code = data.user_code or service._generate_user_code(data.role)
+
+    # Validate email uniqueness
+    existing_user = service.user_repo.get_by_email(data.email)
+    if existing_user:
+        raise ITAssetManagerError("User with this email already exists", status_code=400)
+
+    # Generate or validate unique user code
+    user_code = data.user_code
+    if user_code:
+        if service.user_repo.get_by_user_code(user_code):
+            raise ITAssetManagerError(f"User code '{user_code}' already exists", status_code=400)
+    else:
+        user_code = service._generate_user_code(data.role)
+
     hashed_pw = service.hash_password(data.password)
 
     user = User(
         user_code=user_code,
-        name=data.name,
+        name=data.name.strip(),
         email=data.email.lower().strip(),
         hashed_password=hashed_pw,
         role=data.role,
         department=data.department,
     )
-    return service.user_repo.create(user)
+    created = service.user_repo.create(user)
+
+    actor_id = admin.id if admin else created.id
+    service.activity_repo.log(
+        action="ADMIN_CREATED_USER" if admin else "USER_REGISTERED",
+        user_id=actor_id,
+        details=(
+            f"Admin {admin.email} created user {created.name} ({created.email}, {created.role}, {created.user_code})"
+            if admin
+            else f"User {created.name} ({created.email}, {created.role}) registered"
+        ),
+    )
+    return created
 
 
-def update_user(db: Session, user: User, data: UserUpdate) -> User:
-    """Standalone update user function."""
-    if data.name is not None:
+def update_user(db: Session, user: User, data: UserUpdate, actor: Optional[User] = None) -> User:
+    """Update user with activity logging."""
+    changes = []
+    if data.name is not None and data.name != user.name:
+        changes.append(f"name: '{user.name}' -> '{data.name}'")
         user.name = data.name
-    if data.department is not None:
+    if data.department is not None and data.department != user.department:
+        changes.append(f"department: '{user.department}' -> '{data.department}'")
         user.department = data.department
-    if data.role is not None:
+    if data.role is not None and data.role != user.role:
+        changes.append(f"role: '{user.role}' -> '{data.role}'")
         user.role = data.role
-    if data.is_active is not None:
+    if data.is_active is not None and data.is_active != user.is_active:
+        changes.append(f"status: {'active' if data.is_active else 'inactive'}")
         user.is_active = data.is_active
 
     db.commit()
     db.refresh(user)
+
+    if changes:
+        actor_id = actor.id if actor else user.id
+        ActivityLogRepository(db).log(
+            action="USER_UPDATED",
+            user_id=actor_id,
+            details=f"Updated user {user.email}: {', '.join(changes)}",
+        )
     return user
 
 
@@ -99,7 +137,11 @@ class UserService:
     def _generate_user_code(self, role: str) -> str:
         prefix = "ADM" if role == "ADMIN" else ("SUP" if role == "SUPPORT" else "EMP")
         count = self.user_repo.count_users() + 101
-        return f"{prefix}-{count}"
+        code = f"{prefix}-{count}"
+        while self.user_repo.get_by_user_code(code):
+            count += 1
+            code = f"{prefix}-{count}"
+        return code
 
     @measure_execution_time
     @log_activity("User Registration")

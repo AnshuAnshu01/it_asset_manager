@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 from app.models.ticket import Ticket, TicketHistory, TicketStatus
 from app.models.user import User
 from app.schemas.ticket import TicketCreate, TicketUpdate
-from app.database.repositories import TicketRepository
+from app.database.repositories import TicketRepository, ActivityLogRepository
 from app.services.sla_service import SLAService, calculate_sla_deadline
 from app.utils.exceptions import (
     ResourceNotFoundError,
@@ -89,12 +89,19 @@ def create_ticket(db: Session, user: User, data):
         )
     )
 
+    ActivityLogRepository(db).log(
+        action="TICKET_CREATED",
+        user_id=user.id,
+        ticket_id=ticket.id,
+        details=f"Ticket {ticket.ticket_number} created: '{ticket.title}' [{category}/{priority}]",
+    )
+
     db.commit()
     db.refresh(ticket)
     return ticket
 
 
-def assign_ticket(db: Session, ticket: Ticket, support_user: User):
+def assign_ticket(db: Session, ticket: Ticket, support_user: User, actor: Optional[User] = None):
     if support_user.role not in {"SUPPORT", "ADMIN"}:
         raise HTTPException(
             status_code=400,
@@ -116,12 +123,21 @@ def assign_ticket(db: Session, ticket: Ticket, support_user: User):
             creator_user_code=ticket.creator.user_code if ticket.creator else None,
         )
     )
+
+    actor_id = actor.id if actor else support_user.id
+    ActivityLogRepository(db).log(
+        action="TICKET_ASSIGNED",
+        user_id=actor_id,
+        ticket_id=ticket.id,
+        details=f"Ticket {ticket.ticket_number} assigned to {support_user.name} ({support_user.user_code})",
+    )
+
     db.commit()
     db.refresh(ticket)
     return ticket
 
 
-def resolve_ticket(db: Session, ticket: Ticket, resolution: str):
+def resolve_ticket(db: Session, ticket: Ticket, resolution: str, actor: Optional[User] = None):
     if ticket.status not in {"ASSIGNED", "IN_PROGRESS", "OPEN"}:
         raise HTTPException(
             status_code=400,
@@ -146,12 +162,21 @@ def resolve_ticket(db: Session, ticket: Ticket, resolution: str):
             creator_user_code=ticket.creator.user_code if ticket.creator else None,
         )
     )
+
+    actor_id = actor.id if actor else None
+    ActivityLogRepository(db).log(
+        action="TICKET_RESOLVED",
+        user_id=actor_id,
+        ticket_id=ticket.id,
+        details=f"Ticket {ticket.ticket_number} resolved: {resolution}",
+    )
+
     db.commit()
     db.refresh(ticket)
     return ticket
 
 
-def close_ticket(db: Session, ticket: Ticket):
+def close_ticket(db: Session, ticket: Ticket, actor: Optional[User] = None):
     if ticket.status != "RESOLVED":
         raise HTTPException(
             status_code=400,
@@ -173,6 +198,15 @@ def close_ticket(db: Session, ticket: Ticket):
             creator_user_code=ticket.creator.user_code if ticket.creator else None,
         )
     )
+
+    actor_id = actor.id if actor else None
+    ActivityLogRepository(db).log(
+        action="TICKET_CLOSED",
+        user_id=actor_id,
+        ticket_id=ticket.id,
+        details=f"Ticket {ticket.ticket_number} closed",
+    )
+
     db.commit()
     db.refresh(ticket)
     return ticket

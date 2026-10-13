@@ -15,7 +15,7 @@ from app.utils.exceptions import (
 from app.utils.decorators import log_activity, measure_execution_time
 
 
-def create_asset(db: Session, data: AssetCreate) -> Asset:
+def create_asset(db: Session, data: AssetCreate, actor: Optional[User] = None) -> Asset:
     service = AssetService(db)
     existing = service.asset_repo.get_by_serial(data.serial_number)
     if existing:
@@ -33,10 +33,17 @@ def create_asset(db: Session, data: AssetCreate) -> Asset:
         specifications=data.specifications or {},
         notes=data.notes,
     )
-    return service.asset_repo.create(asset)
+    created = service.asset_repo.create(asset)
+    actor_id = actor.id if actor else None
+    service.activity_repo.log(
+        action="CREATE_ASSET",
+        user_id=actor_id,
+        details=f"Created asset {created.asset_tag} ({created.asset_type}: {created.brand} {created.model})",
+    )
+    return created
 
 
-def assign_asset(db: Session, asset: Asset, user: User, notes: Optional[str] = None) -> Asset:
+def assign_asset(db: Session, asset: Asset, user: User, notes: Optional[str] = None, actor: Optional[User] = None) -> Asset:
     if asset.status == AssetStatus.ASSIGNED.value:
         raise InvalidStatusTransitionError(f"Asset {asset.asset_tag} is already assigned")
     asset.status = AssetStatus.ASSIGNED.value
@@ -50,10 +57,17 @@ def assign_asset(db: Session, asset: Asset, user: User, notes: Optional[str] = N
     db.add(assignment)
     db.commit()
     db.refresh(asset)
+
+    actor_id = actor.id if actor else user.id
+    ActivityLogRepository(db).log(
+        action="ASSIGN_ASSET",
+        user_id=actor_id,
+        details=f"Assigned asset {asset.asset_tag} ({asset.brand} {asset.model}) to user {user.name} ({user.email})",
+    )
     return asset
 
 
-def return_asset(db: Session, asset: Asset, notes: Optional[str] = None) -> Asset:
+def return_asset(db: Session, asset: Asset, notes: Optional[str] = None, actor: Optional[User] = None) -> Asset:
     if asset.status != AssetStatus.ASSIGNED.value:
         raise InvalidStatusTransitionError(f"Asset {asset.asset_tag} is not currently assigned")
     assignment = (
@@ -68,6 +82,13 @@ def return_asset(db: Session, asset: Asset, notes: Optional[str] = None) -> Asse
     asset.assigned_to_id = None
     db.commit()
     db.refresh(asset)
+
+    actor_id = actor.id if actor else None
+    ActivityLogRepository(db).log(
+        action="RETURN_ASSET",
+        user_id=actor_id,
+        details=f"Returned asset {asset.asset_tag} to inventory",
+    )
     return asset
 
 

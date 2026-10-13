@@ -16,6 +16,7 @@ from app.services.asset_service import (
     create_asset,
     return_asset,
 )
+from app.database.repositories import ActivityLogRepository
 
 router = APIRouter(prefix="/assets", tags=["Assets"])
 
@@ -44,9 +45,9 @@ def get_asset(
 def add_asset(
     data: AssetCreate,
     db: Session = Depends(get_db),
-    _: User = Depends(require_roles("ADMIN")),
+    admin: User = Depends(require_roles("ADMIN")),
 ):
-    return create_asset(db, data)
+    return create_asset(db, data, actor=admin)
 
 
 @router.put("/{asset_id}", response_model=AssetResponse)
@@ -54,7 +55,7 @@ def edit_asset(
     asset_id: int,
     data: AssetUpdate,
     db: Session = Depends(get_db),
-    _: User = Depends(require_roles("ADMIN")),
+    admin: User = Depends(require_roles("ADMIN")),
 ):
     asset = db.query(Asset).filter(Asset.id == asset_id).first()
     if not asset:
@@ -65,6 +66,13 @@ def edit_asset(
 
     db.commit()
     db.refresh(asset)
+
+    ActivityLogRepository(db).log(
+        action="UPDATE_ASSET",
+        user_id=admin.id,
+        details=f"Admin {admin.email} updated asset {asset.asset_tag} ({asset.brand} {asset.model})",
+    )
+
     return asset
 
 
@@ -72,7 +80,7 @@ def edit_asset(
 def delete_asset(
     asset_id: int,
     db: Session = Depends(get_db),
-    _: User = Depends(require_roles("ADMIN")),
+    admin: User = Depends(require_roles("ADMIN")),
 ):
     asset = db.query(Asset).filter(Asset.id == asset_id).first()
     if not asset:
@@ -80,6 +88,13 @@ def delete_asset(
 
     asset.status = "RETIRED"
     db.commit()
+
+    ActivityLogRepository(db).log(
+        action="RETIRE_ASSET",
+        user_id=admin.id,
+        details=f"Admin {admin.email} retired asset {asset.asset_tag}",
+    )
+
     return {"message": "Asset retired"}
 
 
@@ -88,7 +103,7 @@ def assign(
     asset_id: int,
     data: AssetAssignRequest,
     db: Session = Depends(get_db),
-    _: User = Depends(require_roles("ADMIN")),
+    admin: User = Depends(require_roles("ADMIN")),
 ):
     asset = db.query(Asset).filter(Asset.id == asset_id).first()
     user = db.query(User).filter(User.id == data.user_id).first()
@@ -98,17 +113,18 @@ def assign(
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
 
-    return assign_asset(db, asset, user)
+    return assign_asset(db, asset, user, actor=admin)
 
 
 @router.post("/{asset_id}/return", response_model=AssetResponse)
 def return_asset_endpoint(
     asset_id: int,
     db: Session = Depends(get_db),
-    _: User = Depends(require_roles("ADMIN")),
+    admin: User = Depends(require_roles("ADMIN")),
 ):
     asset = db.query(Asset).filter(Asset.id == asset_id).first()
     if not asset:
         raise HTTPException(status_code=404, detail="Asset not found")
 
-    return return_asset(db, asset)
+    return return_asset(db, asset, actor=admin)
+

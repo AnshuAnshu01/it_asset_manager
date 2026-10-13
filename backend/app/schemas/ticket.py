@@ -100,3 +100,16 @@ class SLAReportResponse(BaseModel):
     breached_tickets: int
     compliance_rate_percent: float
     avg_resolution_time_hours: float
+
+
+class ActivityLogResponse(BaseModel):
+    id: int
+    user_id: Optional[int] = None
+    user_code: Optional[str] = None
+    ticket_id: Optional[int] = None
+    action: str
+    details: Optional[str] = None
+    ip_address: Optional[str] = None
+    created_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)

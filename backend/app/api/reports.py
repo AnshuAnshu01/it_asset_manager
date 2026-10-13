@@ -1,13 +1,16 @@
+from typing import Optional
 from fastapi import APIRouter, Depends, Query
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 
 from app.database.connection import get_db
+from app.database.repositories import ActivityLogRepository
 from app.models.user import User
 from app.schemas.ticket import (
     TicketReportResponse,
     AssetReportResponse,
     SLAReportResponse,
+    ActivityLogResponse,
 )
 from app.services.report_service import ReportService
 from app.api.deps import require_support_or_admin, require_admin
@@ -115,3 +118,17 @@ def external_scenario_test(
         },
     }
     return scenarios.get(scenario, {"scenario": scenario, "status_code": 200, "message": "Unknown scenario"})
+
+
+@router.get("/activity-logs", response_model=list[ActivityLogResponse])
+def get_activity_logs(
+    limit: int = Query(50, ge=1, le=200),
+    action: Optional[str] = Query(None),
+    user_id: Optional[int] = Query(None),
+    current_user: User = Depends(require_support_or_admin),
+    db: Session = Depends(get_db),
+):
+    """Retrieve recent system activity logs."""
+    repo = ActivityLogRepository(db)
+    return repo.list_logs(limit=limit, user_id=user_id, action=action)
+

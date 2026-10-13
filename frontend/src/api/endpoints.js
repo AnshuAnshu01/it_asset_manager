@@ -44,4 +44,5 @@ export const reportsAPI = {
   assets: () => api.get('/reports/assets'),
   sla: () => api.get('/reports/sla'),
   supportWorkload: () => api.get('/reports/support-workload'),
+  activityLogs: (params) => api.get('/reports/activity-logs', { params }),
 };

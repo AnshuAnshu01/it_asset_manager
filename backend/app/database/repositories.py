@@ -201,22 +201,42 @@ class TicketRepository(BaseRepository):
 
 
 class ActivityLogRepository(BaseRepository):
-    def log(self, action: str, user_id: Optional[int] = None, details: Optional[str] = None, ip_address: Optional[str] = None) -> Optional[ActivityLog]:
-        # Only record user login in the activity log table
-        if action != "USER_LOGIN":
-            return None
-
+    def log(
+        self,
+        action: str,
+        user_id: Optional[int] = None,
+        details: Optional[str] = None,
+        ip_address: Optional[str] = None,
+        ticket_id: Optional[int] = None,
+    ) -> Optional[ActivityLog]:
         user_code = None
         if user_id:
             user = self.db.query(User).filter(User.id == user_id).first()
             if user:
                 user_code = user.user_code
         
-        entry = ActivityLog(user_id=user_id, user_code=user_code, action=action, details=details, ip_address=ip_address)
+        entry = ActivityLog(
+            user_id=user_id,
+            user_code=user_code,
+            ticket_id=ticket_id,
+            action=action,
+            details=details,
+            ip_address=ip_address,
+        )
         self.db.add(entry)
         self.db.commit()
         self.db.refresh(entry)
         return entry
 
-    def list_logs(self, limit: int = 50) -> List[ActivityLog]:
-        return self.db.query(ActivityLog).order_by(desc(ActivityLog.created_at)).limit(limit).all()
+    def list_logs(
+        self,
+        limit: int = 50,
+        user_id: Optional[int] = None,
+        action: Optional[str] = None,
+    ) -> List[ActivityLog]:
+        query = self.db.query(ActivityLog)
+        if user_id is not None:
+            query = query.filter(ActivityLog.user_id == user_id)
+        if action:
+            query = query.filter(ActivityLog.action == action)
+        return query.order_by(desc(ActivityLog.created_at)).limit(limit).all()

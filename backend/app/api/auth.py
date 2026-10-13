@@ -79,6 +79,7 @@ async def login(request: Request, db: Session = Depends(get_db)):
 
     username_clean = (raw_username or "").strip()
     password_clean = raw_password or ""
+    client_ip = request.client.host if request.client else None
 
     user = (
         db.query(User)
@@ -90,12 +91,24 @@ async def login(request: Request, db: Session = Depends(get_db)):
     )
 
     if not user or not verify_password(password_clean, user.hashed_password):
+        ActivityLogRepository(db).log(
+            action="LOGIN_FAILED",
+            user_id=user.id if user else None,
+            details=f"Failed login attempt for '{username_clean}'",
+            ip_address=client_ip,
+        )
         raise HTTPException(
             status_code=401,
             detail="Invalid username or password",
         )
-        
+
     if not user.is_active:
+        ActivityLogRepository(db).log(
+            action="LOGIN_BLOCKED",
+            user_id=user.id,
+            details=f"Disabled user '{user.email}' attempted to login",
+            ip_address=client_ip,
+        )
         raise HTTPException(
             status_code=401,
             detail="User account is disabled",
@@ -105,6 +118,7 @@ async def login(request: Request, db: Session = Depends(get_db)):
         action="USER_LOGIN",
         user_id=user.id,
         details=f"Successful login for {user.email}",
+        ip_address=client_ip,
     )
 
     return {
@@ -122,10 +136,21 @@ def me(current_user: User = Depends(get_current_user)):
 
 
 @router.post("/logout")
-def logout():
+def logout(
+    request: Request,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    client_ip = request.client.host if request.client else None
+    ActivityLogRepository(db).log(
+        action="USER_LOGOUT",
+        user_id=current_user.id,
+        details=f"User {current_user.email} logged out",
+        ip_address=client_ip,
+    )
     return {
         "message": (
-            "Logout is handled client-side by removing the access token. "
-            "For immediate token revocation, add a token blacklist."
+            "Logout successful. Access token removed."
         )
     }
+

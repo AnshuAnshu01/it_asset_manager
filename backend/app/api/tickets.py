@@ -19,6 +19,7 @@ from app.services.ticket_service import (
     create_ticket,
     resolve_ticket,
 )
+from app.database.repositories import ActivityLogRepository
 
 router = APIRouter(prefix="/tickets", tags=["Tickets"])
 
@@ -92,6 +93,14 @@ def edit_ticket(
 
     db.commit()
     db.refresh(ticket)
+
+    ActivityLogRepository(db).log(
+        action="TICKET_UPDATED",
+        user_id=current_user.id,
+        ticket_id=ticket.id,
+        details=f"Ticket {ticket.ticket_number} updated by {current_user.name}",
+    )
+
     return ticket
 
 
@@ -100,7 +109,7 @@ def assign(
     ticket_id: int,
     data: TicketAssignRequest,
     db: Session = Depends(get_db),
-    _: User = Depends(require_roles("ADMIN")),
+    admin: User = Depends(require_roles("ADMIN")),
 ):
     target_id = data.support_user_id if data.support_user_id is not None else data.assigned_to_id
     ticket = db.query(Ticket).filter(Ticket.id == ticket_id).first()
@@ -111,7 +120,7 @@ def assign(
     if not support:
         raise HTTPException(status_code=404, detail="Support user not found")
 
-    return assign_ticket(db, ticket, support)
+    return assign_ticket(db, ticket, support, actor=admin)
 
 
 @router.post("/{ticket_id}/process", response_model=TicketResponse)
@@ -140,6 +149,14 @@ def process(
             creator_user_code=ticket.creator.user_code if ticket.creator else None,
         )
     )
+
+    ActivityLogRepository(db).log(
+        action="TICKET_IN_PROGRESS",
+        user_id=current_user.id,
+        ticket_id=ticket.id,
+        details=f"Ticket {ticket.ticket_number} processing started by {current_user.name}",
+    )
+
     db.commit()
     db.refresh(ticket)
     return ticket
@@ -160,7 +177,7 @@ def resolve(
         raise HTTPException(status_code=403, detail="Access denied")
 
     res_comment = data.resolution or data.resolution_comment or "Resolved"
-    return resolve_ticket(db, ticket, res_comment)
+    return resolve_ticket(db, ticket, res_comment, actor=current_user)
 
 
 class TicketEscalateRequest(BaseModel):
@@ -196,6 +213,14 @@ def escalate(
             creator_user_code=ticket.creator.user_code if ticket.creator else None,
         )
     )
+
+    ActivityLogRepository(db).log(
+        action="TICKET_ESCALATED",
+        user_id=current_user.id,
+        ticket_id=ticket.id,
+        details=f"Ticket {ticket.ticket_number} escalated to Admin: {data.reason}",
+    )
+
     db.commit()
     db.refresh(ticket)
     return ticket
@@ -205,10 +230,11 @@ def escalate(
 def close(
     ticket_id: int,
     db: Session = Depends(get_db),
-    _: User = Depends(require_roles("SUPPORT", "ADMIN")),
+    current_user: User = Depends(require_roles("SUPPORT", "ADMIN")),
 ):
     ticket = db.query(Ticket).filter(Ticket.id == ticket_id).first()
     if not ticket:
         raise HTTPException(status_code=404, detail="Ticket not found")
 
-    return close_ticket(db, ticket)
+    return close_ticket(db, ticket, actor=current_user)
+
