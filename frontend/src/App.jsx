@@ -13,6 +13,7 @@ import TicketsPage from './pages/TicketsPage';
 import UsersPage from './pages/UsersPage';
 import ReportsPage from './pages/ReportsPage';
 import ProfilePage from './pages/ProfilePage';
+import AssetRequestsPage from './pages/AssetRequestsPage';
 
 export default function App() {
   return (
@@ -32,6 +33,7 @@ export default function App() {
                 <Route element={<AppLayout />}>
                   <Route path="/dashboard" element={<DashboardPage />} />
                   <Route path="/tickets" element={<TicketsPage />} />
+                  <Route path="/asset-requests" element={<AssetRequestsPage />} />
                   <Route path="/profile" element={<ProfilePage />} />
 
                   {/* Admin + Support only */}

@@ -1,4 +1,5 @@
 import { useEffect, useState, useMemo } from 'react';
+import { Link } from 'react-router-dom';
 import { assetsAPI, usersAPI } from '../api/endpoints';
 import { useAuth } from '../context/AuthContext';
 import Header from '../components/Header';
@@ -8,7 +9,7 @@ import { useWebSocket } from '../hooks/useWebSocket';
 import {
   Plus, Search, Laptop, Monitor, Keyboard, Mouse, Printer,
   Edit2, Trash2, UserCheck, UserX, RefreshCw, CheckCircle,
-  Clock, AlertTriangle, ChevronLeft, ChevronRight
+  Clock, AlertTriangle, ChevronLeft, ChevronRight, ClipboardList
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { format } from 'date-fns';
@@ -413,6 +414,9 @@ export default function AssetsPage() {
               </div>
             </div>
             <div className="flex gap-2">
+              <Link to="/asset-requests" className="btn btn-secondary btn-sm" title="Manage User Asset Requests">
+                <ClipboardList size={14} /> Asset Requests
+              </Link>
               <button className="btn btn-secondary btn-sm" onClick={load} title="Refresh Assets">
                 <RefreshCw size={14} /> Refresh
               </button>

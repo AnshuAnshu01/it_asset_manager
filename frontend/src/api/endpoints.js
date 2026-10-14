@@ -46,3 +46,13 @@ export const reportsAPI = {
   supportWorkload: () => api.get('/reports/support-workload'),
   activityLogs: (params) => api.get('/reports/activity-logs', { params }),
 };
+
+export const assetRequestsAPI = {
+  list: (params) => api.get('/asset-requests/', { params }),
+  get: (id) => api.get(`/asset-requests/${id}`),
+  create: (data) => api.post('/asset-requests/', data),
+  assign: (id, data) => api.post(`/asset-requests/${id}/assign`, data),
+  reject: (id, data) => api.post(`/asset-requests/${id}/reject`, data),
+  cancel: (id) => api.delete(`/asset-requests/${id}`),
+  availableInventory: (assetType) => api.get('/asset-requests/inventory/available', { params: { asset_type: assetType } }),
+};

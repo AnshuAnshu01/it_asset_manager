@@ -1,12 +1,13 @@
 import { useEffect, useState } from 'react';
-import { reportsAPI, ticketsAPI, assetsAPI } from '../api/endpoints';
+import { Link } from 'react-router-dom';
+import { reportsAPI, ticketsAPI, assetsAPI, assetRequestsAPI } from '../api/endpoints';
 import { useAuth } from '../context/AuthContext';
 import { useWebSocket } from '../hooks/useWebSocket';
 import Header from '../components/Header';
 import { StatusBadge, PriorityBadge } from '../components/Badge';
 import {
   Ticket, Laptop, Users, AlertTriangle,
-  CheckCircle, Clock, TrendingUp, Activity
+  CheckCircle, Clock, TrendingUp, Activity, Plus
 } from 'lucide-react';
 import {
   PieChart, Pie, Cell, BarChart, Bar,
@@ -34,7 +35,7 @@ const CustomTooltip = ({ active, payload, label }) => {
 };
 
 export default function DashboardPage() {
-  const { user, isAdminOrSupport } = useAuth();
+  const { user, isAdmin, isAdminOrSupport } = useAuth();
   const { connected, messages, lastEvent } = useWebSocket();
   const [reports, setReports] = useState({ tickets: null, assets: null, sla: null });
   const [tickets, setTickets] = useState([]);
@@ -74,15 +75,21 @@ export default function DashboardPage() {
 
   const [myAssets, setMyAssets] = useState([]);
   const [workload, setWorkload] = useState([]);
+  const [requests, setRequests] = useState([]);
+
   useEffect(() => {
     if (user) {
       assetsAPI.list().then(r => setMyAssets(r.data.filter(a => a.assigned_to_id === user.id))).catch(() => {});
+      assetRequestsAPI.list().then(r => setRequests(r.data || [])).catch(() => {});
     }
   }, [user]);
 
   useEffect(() => {
     if (lastEvent) {
       ticketsAPI.list().then(r => setTickets(r.data)).catch(() => {});
+      if (lastEvent?.event?.startsWith('ASSET_REQUEST_')) {
+        assetRequestsAPI.list().then(r => setRequests(r.data || [])).catch(() => {});
+      }
     }
   }, [lastEvent]);
 
@@ -107,6 +114,44 @@ export default function DashboardPage() {
     <>
       <Header title="Dashboard" subtitle={`Welcome back, ${user?.name}`} wsConnected={connected} />
       <div className="page-content">
+
+        {/* Employee Asset Request Banner */}
+        {!isAdmin && (
+          <div className="card" style={{
+            background: 'linear-gradient(135deg, rgba(234, 179, 8, 0.12), rgba(245, 158, 11, 0.05))',
+            border: '1px solid rgba(234, 179, 8, 0.35)',
+            marginBottom: 24,
+            padding: '20px 24px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            flexWrap: 'wrap',
+            gap: 16
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+              <div style={{
+                width: 48, height: 48, borderRadius: 12,
+                background: 'linear-gradient(135deg, var(--accent), var(--accent2))',
+                color: 'var(--accent-contrast)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                boxShadow: '0 4px 14px var(--accent-glow)'
+              }}>
+                <Laptop size={24} />
+              </div>
+              <div>
+                <div style={{ fontSize: 17, fontWeight: 700, color: 'var(--text-primary)' }}>
+                  Need Hardware or IT Equipment?
+                </div>
+                <div style={{ fontSize: 13, color: 'var(--text-secondary)', marginTop: 2 }}>
+                  Submit an asset request for a Laptop, Monitor, or Peripherals directly to the IT Administrator.
+                </div>
+              </div>
+            </div>
+            <Link to="/asset-requests" className="btn btn-primary" style={{ padding: '10px 20px', fontSize: 14 }}>
+              <Plus size={16} /> Request IT Asset
+            </Link>
+          </div>
+        )}
 
         {/* Stats */}
         <div className="stats-grid">
@@ -196,6 +241,16 @@ export default function DashboardPage() {
                   <div className="card-title">My Assigned Assets</div>
                   <div className="card-subtitle">Hardware currently assigned to you</div>
                 </div>
+                {!isAdmin && (
+                  <Link to="/asset-requests" className="btn btn-sm btn-primary">
+                    <Laptop size={14} /> Request Asset
+                  </Link>
+                )}
+                {isAdmin && (
+                  <Link to="/asset-requests" className="btn btn-sm btn-secondary">
+                    View Asset Requests
+                  </Link>
+                )}
               </div>
               <div className="card-body">
                 <div className="table-container">
@@ -220,6 +275,53 @@ export default function DashboardPage() {
                 </div>
               </div>
             </div>
+
+          {/* My Asset Requests (Non-Admin) */}
+          {!isAdmin && (
+            <div className="card grid-full">
+              <div className="card-header">
+                <div>
+                  <div className="card-title">My Asset Requests</div>
+                  <div className="card-subtitle">Recent hardware requests submitted to admin</div>
+                </div>
+                <Link to="/asset-requests" className="btn btn-sm btn-primary">
+                  <Plus size={14} /> New Request
+                </Link>
+              </div>
+              <div className="card-body">
+                <div className="table-container">
+                  <table>
+                    <thead>
+                      <tr><th>Request #</th><th>Type</th><th>Preferred Specs / Reference</th><th>Priority</th><th>Status</th><th>Assigned Asset</th></tr>
+                    </thead>
+                    <tbody>
+                      {requests.slice(0, 5).map(r => (
+                        <tr key={r.id}>
+                          <td style={{ fontFamily: 'var(--font-mono)', color: 'var(--accent)', fontWeight: 600 }}>{r.request_number}</td>
+                          <td style={{ fontWeight: 600 }}>{r.asset_type}</td>
+                          <td style={{ fontSize: 12, color: 'var(--text-secondary)' }}>{r.preferred_specs || 'Standard'}</td>
+                          <td><PriorityBadge priority={r.priority} /></td>
+                          <td><StatusBadge status={r.status} /></td>
+                          <td>
+                            {r.assigned_asset ? (
+                              <span style={{ color: 'var(--success)', fontWeight: 600 }}>
+                                {r.assigned_asset.asset_tag} ({r.assigned_asset.brand} {r.assigned_asset.model})
+                              </span>
+                            ) : (
+                              <span style={{ color: 'var(--text-muted)' }}>—</span>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                      {requests.length === 0 && (
+                        <tr><td colSpan={6} style={{ textAlign: 'center', padding: 32, color: 'var(--text-muted)' }}>No asset requests submitted yet</td></tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Charts — admin/support only */}
           {isAdminOrSupport && byStatusData.length > 0 && (

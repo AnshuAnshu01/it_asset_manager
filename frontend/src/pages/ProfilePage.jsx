@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useWebSocket } from '../hooks/useWebSocket';
 import Header from '../components/Header';
@@ -60,6 +61,21 @@ export default function ProfilePage() {
             <InfoRow icon={Calendar} label="Account Created"
               value={user?.created_at ? format(new Date(user.created_at), 'MMMM d, yyyy') : '—'} />
           </div>
+        </div>
+
+        {/* Quick Link Card to Asset Requests */}
+        <div className="card" style={{ marginTop: 20, padding: 24, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 16 }}>
+          <div>
+            <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-primary)' }}>Need Equipment or Hardware?</div>
+            <div style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 2 }}>
+              {user?.role === 'ADMIN'
+                ? 'Review and fulfill hardware requests submitted by staff members.'
+                : 'Submit an asset request for a laptop, monitor, or peripherals to the administrator.'}
+            </div>
+          </div>
+          <Link to="/asset-requests" className="btn btn-primary" style={{ whiteSpace: 'nowrap' }}>
+            {user?.role === 'ADMIN' ? 'Manage Asset Requests' : 'Request IT Asset'}
+          </Link>
         </div>
 
 

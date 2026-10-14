@@ -1,5 +1,6 @@
 services:
   backend:
+    # image: anshu966/it_asset_manager-backend:latest
     build:
       context: ./backend
       dockerfile: Dockerfile
@@ -20,6 +21,7 @@ services:
       - "8000:8000"
 
   frontend:
+    # image: anshu966/it_asset_manager-frontend:latest
     build:
       context: ./frontend
       dockerfile: Dockerfile

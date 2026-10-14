@@ -173,6 +173,33 @@ export default function LoginPage() {
           </div>
         </div>
       </div>
+
+      {/* Animated Bottom Corner Badges (Login Page Only) - Conceals video watermarks with live enterprise widgets */}
+      <div className="login-corner-badge corner-bottom-left" id="corner-badge-status">
+        <div className="corner-badge-glow" />
+        <span className="corner-pulse-wrapper">
+          <span className="corner-pulse-dot dot-green" />
+          <span className="corner-pulse-ring ring-green" />
+        </span>
+        <Activity size={15} className="corner-badge-icon icon-green" />
+        <div className="corner-badge-details">
+          <span className="corner-badge-title">System Status: Operational</span>
+          <span className="corner-badge-sub">99.9% Uptime • Sahana Cloud</span>
+        </div>
+      </div>
+
+      <div className="login-corner-badge corner-bottom-right" id="corner-badge-security">
+        <div className="corner-badge-glow" />
+        <span className="corner-pulse-wrapper">
+          <span className="corner-pulse-dot dot-gold" />
+          <span className="corner-pulse-ring ring-gold" />
+        </span>
+        <ShieldCheck size={16} className="corner-badge-icon icon-gold" />
+        <div className="corner-badge-details">
+          <span className="corner-badge-title">Enterprise Secured</span>
+          <span className="corner-badge-sub">256-Bit SSL • Active Sentinel</span>
+        </div>
+      </div>
     </div>
   );
 }

@@ -16,6 +16,7 @@ from app.api.users import router as users_router
 from app.api.assets import router as assets_router
 from app.api.tickets import router as tickets_router
 from app.api.reports import router as reports_router
+from app.api.asset_requests import router as asset_requests_router
 from app.api.websocket import ws_router
 
 logger = get_logger()
@@ -87,6 +88,7 @@ app.include_router(auth_router)
 app.include_router(users_router)
 app.include_router(assets_router)
 app.include_router(tickets_router)
+app.include_router(asset_requests_router)
 app.include_router(reports_router)
 app.include_router(ws_router)
 

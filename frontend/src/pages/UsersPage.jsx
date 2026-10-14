@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { usersAPI } from '../api/endpoints';
 import { useAuth } from '../context/AuthContext';
 import { useWebSocket } from '../hooks/useWebSocket';
 import Header from '../components/Header';
 import Modal from '../components/Modal';
 import { RoleBadge } from '../components/Badge';
-import { Plus, Search, Users, Edit2, Trash2, RefreshCw, CheckCircle, XCircle } from 'lucide-react';
+import { Plus, Search, Users, Edit2, Trash2, RefreshCw, CheckCircle, XCircle, ClipboardList } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { format } from 'date-fns';
 
@@ -165,6 +166,9 @@ export default function UsersPage() {
               <div className="card-subtitle">{filtered.length} users</div>
             </div>
             <div className="flex gap-2">
+              <Link to="/asset-requests" className="btn btn-secondary btn-sm" title="View & Fulfill Asset Requests">
+                <ClipboardList size={14} /> Asset Requests
+              </Link>
               <button className="btn btn-secondary btn-sm" onClick={load}><RefreshCw size={14} /></button>
               <button className="btn btn-primary btn-sm" onClick={() => setShowCreate(true)}>
                 <Plus size={14} /> Add User

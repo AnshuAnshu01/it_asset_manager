@@ -28,6 +28,12 @@ from app.schemas.ticket import (
     SLAReportResponse,
     ActivityLogResponse,
 )
+from app.schemas.asset_request import (
+    AssetRequestCreate,
+    AssetRequestAssign,
+    AssetRequestReject,
+    AssetRequestResponse,
+)
 
 __all__ = [
     "UserRegister",
@@ -54,4 +60,8 @@ __all__ = [
     "AssetReportResponse",
     "SLAReportResponse",
     "ActivityLogResponse",
+    "AssetRequestCreate",
+    "AssetRequestAssign",
+    "AssetRequestReject",
+    "AssetRequestResponse",
 ]

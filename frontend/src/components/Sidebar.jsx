@@ -1,7 +1,7 @@
 import { NavLink, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard, Monitor, Ticket, Users, BarChart3,
-  LogOut, Settings, Shield, Laptop
+  LogOut, Settings, Shield, Laptop, ClipboardList, PackagePlus
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import logoImg from '../assets/logo.png';
@@ -48,8 +48,13 @@ export default function Sidebar() {
         <NavItem to="/dashboard" icon={LayoutDashboard} label="Dashboard" />
 
         <span className="nav-section-label">Assets & Tickets</span>
-        {isAdmin && (
-          <NavItem to="/assets" icon={Laptop} label="Assets" />
+        {isAdmin ? (
+          <>
+            <NavItem to="/assets" icon={Laptop} label="Assets Inventory" />
+            <NavItem to="/asset-requests" icon={ClipboardList} label="Asset Requests" />
+          </>
+        ) : (
+          <NavItem to="/asset-requests" icon={PackagePlus} label="Request Asset" />
         )}
         <NavItem to="/tickets" icon={Ticket} label="Tickets" />
 
