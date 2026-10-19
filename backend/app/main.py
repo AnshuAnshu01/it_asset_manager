@@ -106,7 +106,7 @@ app = FastAPI(
 # CORS Middleware with credentials support for HttpOnly cookies
 ALLOWED_ORIGINS = [
     "http://localhost:3000",
-    "https://it-asset-manager-nine.vercel.app/",
+    "https://it-asset-manager-nine.vercel.app",
     "http://localhost:5173",
     "http://localhost",
     "http://127.0.0.1:3000",
