@@ -472,8 +472,8 @@ input, textarea, select { font-family: inherit; }
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 20px 24px 0;
-  margin-bottom: 16px;
+  padding: 24px 28px 0;
+  margin-bottom: 20px;
 }
 
 .card-title {
@@ -484,14 +484,14 @@ input, textarea, select { font-family: inherit; }
   letter-spacing: -0.01em;
 }
 .card-subtitle { font-size: 13px; color: var(--text-muted); margin-top: 2px; }
-.card-body { padding: 0 24px 24px; }
+.card-body { padding: 0 28px 28px; }
 
 /* ─── Stat Cards ─────────────────────────────────────────── */
 .stats-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
   gap: 16px;
-  margin-bottom: 24px;
+  margin-bottom: 28px;
 }
 
 .stat-card {
@@ -548,6 +548,32 @@ input, textarea, select { font-family: inherit; }
 .stat-delta { font-size: 12px; margin-top: 8px; }
 .stat-delta.positive { color: var(--success); }
 .stat-delta.negative { color: var(--danger); }
+
+/* ─── Dashboard Grid & Section Spacing ───────────────────── */
+.dashboard-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+  margin-bottom: 28px;
+}
+
+.dashboard-charts-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 28px;
+}
+
+.dashboard-grid .grid-full {
+  width: 100%;
+}
+
+/* Fallback: ensure any adjacent cards or grids have clean vertical spacing */
+.page-content > .card + .card,
+.page-content > .dashboard-grid + .card,
+.page-content > .card + .dashboard-grid,
+.dashboard-grid > .card + .card {
+  margin-top: 28px;
+}
 
 /* ─── Buttons ────────────────────────────────────────────── */
 .btn {
@@ -764,7 +790,7 @@ thead th {
   color: var(--text-muted);
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  padding: 14px 16px;
+  padding: 16px 20px;
   background: var(--table-th-bg);
   border-bottom: 1px solid var(--glass-border);
   white-space: nowrap;
@@ -779,7 +805,7 @@ tbody tr:last-child { border-bottom: none; }
 tbody tr:hover { background: var(--bg-card-hover); }
 
 tbody td {
-  padding: 14px 16px;
+  padding: 16px 20px;
   font-size: 13px;
   color: var(--text-secondary);
   vertical-align: middle;
@@ -1408,12 +1434,25 @@ textarea.form-control { resize: vertical; min-height: 80px; }
   .login-form-side {
     padding: 24px 16px;
   }
+  .dashboard-grid {
+    gap: 24px;
+  }
+  .dashboard-charts-grid {
+    grid-template-columns: 1fr;
+    gap: 24px;
+  }
 }
 
 @media (max-width: 768px) {
   .sidebar { display: none; }
   .form-row { grid-template-columns: 1fr; }
-  .dashboard-grid { grid-template-columns: 1fr; }
+  .dashboard-grid {
+    gap: 20px;
+  }
+  .dashboard-charts-grid {
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
   .login-top-bar {
     padding: 16px 20px;
   }

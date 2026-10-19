@@ -144,7 +144,7 @@ export default function UsersPage() {
       <Header title="User Management" subtitle="Manage system users and roles" wsConnected={wsHook.connected} />
       <div className="page-content">
         {/* Stats */}
-        <div className="stats-grid" style={{ gridTemplateColumns: 'repeat(4, 1fr)', marginBottom: 20 }}>
+        <div className="stats-grid" style={{ gridTemplateColumns: 'repeat(4, 1fr)', marginBottom: 28 }}>
           <div className="stat-card indigo">
             <div className="stat-icon indigo"><Users size={18} /></div>
             <div className="stat-value">{users.length}</div>

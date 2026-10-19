@@ -93,7 +93,7 @@ export default function ReportsPage() {
         </div>
 
         {/* Charts Grid */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 28 }}>
           {/* Ticket Status Pie */}
           <div className="card">
             <div className="card-header"><div className="card-title">🎫 Tickets by Status</div></div>

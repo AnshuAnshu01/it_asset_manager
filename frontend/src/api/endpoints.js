@@ -1,8 +1,12 @@
 import api from './client';
+import { encryptPassword } from './crypto';
 
 export const authAPI = {
-  login: (username, password) =>
-    api.post('/auth/login', { username, password }),
+  login: async (username, password) => {
+    // Encrypt password client-side so original password never appears in Network Payload
+    const securePassword = await encryptPassword(password);
+    return api.post('/auth/login', { username, password: securePassword });
+  },
   me: () => api.get('/auth/me'),
   register: (data) => api.post('/auth/register', data),
   logout: () => api.post('/auth/logout'),

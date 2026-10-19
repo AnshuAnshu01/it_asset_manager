@@ -120,7 +120,7 @@ export default function DashboardPage() {
           <div className="card" style={{
             background: 'linear-gradient(135deg, rgba(234, 179, 8, 0.12), rgba(245, 158, 11, 0.05))',
             border: '1px solid rgba(234, 179, 8, 0.35)',
-            marginBottom: 24,
+            marginBottom: 28,
             padding: '20px 24px',
             display: 'flex',
             alignItems: 'center',
@@ -325,7 +325,7 @@ export default function DashboardPage() {
 
           {/* Charts — admin/support only */}
           {isAdminOrSupport && byStatusData.length > 0 && (
-            <>
+            <div className="dashboard-charts-grid">
               <div className="card">
                 <div className="card-header">
                   <div className="card-title">Tickets by Status</div>
@@ -362,7 +362,7 @@ export default function DashboardPage() {
                   </ResponsiveContainer>
                 </div>
               </div>
-            </>
+            </div>
           )}
 
           {/* Support Workload - Admin Only */}

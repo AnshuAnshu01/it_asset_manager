@@ -64,7 +64,7 @@ export default function ProfilePage() {
         </div>
 
         {/* Quick Link Card to Asset Requests */}
-        <div className="card" style={{ marginTop: 20, padding: 24, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 16 }}>
+        <div className="card" style={{ marginTop: 28, padding: 24, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 16 }}>
           <div>
             <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-primary)' }}>Need Equipment or Hardware?</div>
             <div style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 2 }}>

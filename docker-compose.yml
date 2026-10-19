@@ -1,27 +1,71 @@
 services:
+  # ==============================================================================
+  # [MODE 2: IN-BUILT DOCKER POSTGRESQL - COMMENTED OUT FOR LAPTOP USE]
+  # When sharing with someone who does NOT have local PostgreSQL installed:
+  #   1. Uncomment the 'db' service block below.
+  #   2. Under 'backend': uncomment 'DB_HOST: db' and 'depends_on: db'.
+  #   3. Under 'backend': comment out 'DB_HOST: host.docker.internal' and 'extra_hosts'.
+  #   4. Uncomment the 'volumes:' block at the bottom of this file.
+  # ==============================================================================
+  # db:
+  #   image: postgres:15-alpine
+  #   container_name: it_asset_db
+  #   restart: always
+  #   environment:
+  #     POSTGRES_DB: it_asset_manager
+  #     POSTGRES_USER: postgres
+  #     POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-Anshu@123}
+  #   ports:
+  #     - "5432:5432"
+  #   volumes:
+  #     - postgres_data:/var/lib/postgresql/data
+  #   healthcheck:
+  #     test: ["CMD-SHELL", "pg_isready -U postgres -d it_asset_manager"]
+  #     interval: 5s
+  #     timeout: 5s
+  #     retries: 10
+
+  # ==============================================================================
+  # BACKEND SERVICE
+  # ==============================================================================
   backend:
-    # image: anshu966/it_asset_manager-backend:latest
+    image: anshu966/it_asset_manager-backend:latest
     build:
       context: ./backend
       dockerfile: Dockerfile
     container_name: it_asset_backend
     restart: always
+
+    # --- [MODE 1: ACTIVE FOR LAPTOP] Connect to host machine PostgreSQL ---
     extra_hosts:
       - "host.docker.internal:host-gateway"
+
     environment:
       APP_ENV: production
+      # --- [MODE 1: ACTIVE] Host Laptop PostgreSQL ---
       DB_HOST: host.docker.internal
+      # --- [MODE 2: WHEN SHARING] Uncomment below & comment above line ---
+      # DB_HOST: db
       DB_PORT: 5432
       DB_NAME: it_asset_manager
       DB_USER: postgres
-      DB_PASSWORD: Anshu@123
-      SECRET_KEY: 8f7K@2mL:91xPq$4vN!6zR
+      DB_PASSWORD: ${POSTGRES_PASSWORD:-Anshu@123}
+      SECRET_KEY: ${SECRET_KEY:-8f7K@2mL:91xPq$4vN!6zR}
       LOG_LEVEL: INFO
+
     ports:
       - "8000:8000"
 
+    # --- [MODE 2: WHEN SHARING] Uncomment below to wait for in-built db container ---
+    # depends_on:
+    #   db:
+    #     condition: service_healthy
+
+  # ==============================================================================
+  # FRONTEND SERVICE
+  # ==============================================================================
   frontend:
-    # image: anshu966/it_asset_manager-frontend:latest
+    image: anshu966/it_asset_manager-frontend:latest
     build:
       context: ./frontend
       dockerfile: Dockerfile
@@ -31,3 +75,9 @@ services:
       - backend
     ports:
       - "3000:80"
+
+# ==============================================================================
+# VOLUMES (MODE 2: Uncomment when using in-built 'db' service)
+# ==============================================================================
+# volumes:
+#   postgres_data:

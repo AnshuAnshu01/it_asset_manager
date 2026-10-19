@@ -1,5 +1,5 @@
-from typing import Generator
-from fastapi import Depends, HTTPException, status
+from typing import Generator, Optional
+from fastapi import Depends, HTTPException, status, Request
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
 
@@ -8,16 +8,28 @@ from app.models.user import User
 from app.services.user_service import UserService
 from app.utils.exceptions import AuthenticationError, AuthorizationError
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login", auto_error=False)
 
 
 def get_current_user(
-    token: str = Depends(oauth2_scheme),
+    request: Request,
+    token: Optional[str] = Depends(oauth2_scheme),
     db: Session = Depends(get_db),
 ) -> User:
+    # 1. Prefer HttpOnly cookie, fall back to Authorization header
+    cookie_token = request.cookies.get("access_token")
+    auth_token = cookie_token or token
+
+    if not auth_token:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Not authenticated. Missing authentication token.",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
     user_service = UserService(db)
     try:
-        payload = user_service.decode_token(token)
+        payload = user_service.decode_token(auth_token)
         user_id = int(payload.get("sub"))
         user = user_service.get_user_by_id(user_id)
         if not user.is_active:

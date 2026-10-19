@@ -347,7 +347,7 @@ export default function AssetsPage() {
       <div className="page-content">
 
         {/* Quick KPI Stats Cards */}
-        <div className="stats-grid" style={{ marginBottom: 20 }}>
+        <div className="stats-grid" style={{ marginBottom: 28 }}>
           <div
             className={`stat-card indigo ${statusFilter === '' ? 'active-filter' : ''}`}
             onClick={() => setStatusFilter('')}
