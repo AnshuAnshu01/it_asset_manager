@@ -49,6 +49,8 @@ export const reportsAPI = {
   sla: () => api.get('/reports/sla'),
   supportWorkload: () => api.get('/reports/support-workload'),
   activityLogs: (params) => api.get('/reports/activity-logs', { params }),
+  exportTicketsCSV: () => api.get('/reports/tickets/export-csv', { responseType: 'blob' }),
+  exportAssetsCSV: () => api.get('/reports/assets/export-csv', { responseType: 'blob' }),
 };
 
 export const assetRequestsAPI = {

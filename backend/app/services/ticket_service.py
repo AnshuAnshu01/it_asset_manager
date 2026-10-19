@@ -87,6 +87,22 @@ def create_ticket(db: Session, user: User, data):
         except (ValueError, TypeError):
             asset_id = None
 
+    initial_status = "OPEN"
+    assigned_to_user_id = None
+    target_assignee_id = getattr(data, "assigned_to_id", None)
+    assigned_user = None
+    if target_assignee_id:
+        try:
+            target_assignee_id = int(target_assignee_id)
+            if target_assignee_id > 0:
+                support_user = db.query(User).filter(User.id == target_assignee_id).first()
+                if support_user and support_user.role in {"SUPPORT", "ADMIN"}:
+                    assigned_to_user_id = support_user.id
+                    assigned_user = support_user
+                    initial_status = "ASSIGNED"
+        except (ValueError, TypeError):
+            pass
+
     ticket = Ticket(
         ticket_number=ticket_num,
         title=data.title,
@@ -94,8 +110,9 @@ def create_ticket(db: Session, user: User, data):
         category=category,
         priority=priority,
         created_by_id=user.id,
+        assigned_to_id=assigned_to_user_id,
         asset_id=asset_id,
-        status="OPEN",
+        status=initial_status,
         sla_deadline=calculate_sla_deadline(priority, now),
         created_at=now,
     )
@@ -108,8 +125,8 @@ def create_ticket(db: Session, user: User, data):
             TicketHistory(
                 ticket_id=ticket.id,
                 action="CREATED",
-                new_status="OPEN",
-                comments=f"Ticket created with category {category} and priority {priority}",
+                new_status=initial_status,
+                comments=f"Ticket created with category {category} and priority {priority}" + (f" and assigned to {assigned_user.name}" if assigned_user else ""),
                 creator_name=user.name,
                 creator_user_code=user.user_code,
             )
@@ -119,8 +136,21 @@ def create_ticket(db: Session, user: User, data):
             action="TICKET_CREATED",
             user_id=user.id,
             ticket_id=ticket.id,
-            details=f"Ticket {ticket.ticket_number} created: '{ticket.title}' [{category}/{priority}]",
+            details=f"Ticket {ticket.ticket_number} created: '{ticket.title}' [{category}/{priority}]" + (f" assigned to {assigned_user.name}" if assigned_user else ""),
         )
+
+        # If mark_under_repair is requested for this asset, update its status
+        mark_under_repair = getattr(data, "mark_under_repair", False)
+        if asset_id and mark_under_repair:
+            asset_obj = db.query(Asset).filter(Asset.id == asset_id).first()
+            if asset_obj:
+                asset_obj.status = "UNDER_REPAIR"
+                ActivityLogRepository(db).log(
+                    action="ASSET_UNDER_REPAIR",
+                    user_id=user.id,
+                    ticket_id=ticket.id,
+                    details=f"Asset {asset_obj.asset_tag} ({asset_obj.brand} {asset_obj.model}) marked as UNDER_REPAIR via ticket {ticket.ticket_number}",
+                )
 
         db.commit()
         db.refresh(ticket)

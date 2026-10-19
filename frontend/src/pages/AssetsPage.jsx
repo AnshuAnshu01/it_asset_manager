@@ -1,15 +1,16 @@
 import { useEffect, useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
-import { assetsAPI, usersAPI } from '../api/endpoints';
+import { assetsAPI, usersAPI, ticketsAPI } from '../api/endpoints';
 import { useAuth } from '../context/AuthContext';
 import Header from '../components/Header';
 import Modal from '../components/Modal';
-import { StatusBadge } from '../components/Badge';
+import { StatusBadge, PriorityBadge } from '../components/Badge';
 import { useWebSocket } from '../hooks/useWebSocket';
 import {
   Plus, Search, Laptop, Monitor, Keyboard, Mouse, Printer,
   Edit2, Trash2, UserCheck, UserX, RefreshCw, CheckCircle,
-  Clock, AlertTriangle, ChevronLeft, ChevronRight, ClipboardList
+  Clock, AlertTriangle, ChevronLeft, ChevronRight, ClipboardList,
+  Wrench, Ticket
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { format } from 'date-fns';
@@ -137,7 +138,7 @@ function AssetForm({ initial = {}, onSave, onClose, loading }) {
   );
 }
 
-function AssignModal({ asset, onClose, onDone }) {
+function AssignModal({ asset, onClose, onDone, currentUser }) {
   const [users, setUsers] = useState([]);
   const [userSearch, setUserSearch] = useState('');
   const [userId, setUserId] = useState('');
@@ -161,11 +162,13 @@ function AssignModal({ asset, onClose, onDone }) {
   }, [users, userSearch]);
 
   const handleAssign = async () => {
-    if (!userId) return toast.error('Please select an employee');
+    if (!userId) return toast.error('Please select an employee or admin');
     setLoading(true);
     try {
       await assetsAPI.assign(asset.id, { user_id: parseInt(userId, 10) });
-      toast.success(`Asset ${asset.asset_tag} assigned successfully!`);
+      const targetUser = users.find(u => String(u.id) === String(userId));
+      const targetName = targetUser?.name || 'user';
+      toast.success(`Asset ${asset.asset_tag} assigned to ${targetName} successfully!`);
       onDone();
     } catch (err) {
       toast.error(err.response?.data?.detail || 'Failed to assign asset');
@@ -173,6 +176,8 @@ function AssignModal({ asset, onClose, onDone }) {
       setLoading(false);
     }
   };
+
+  const isSelfSelected = currentUser && String(userId) === String(currentUser.id);
 
   return (
     <Modal
@@ -182,17 +187,50 @@ function AssignModal({ asset, onClose, onDone }) {
         <>
           <button className="btn btn-secondary" onClick={onClose}>Cancel</button>
           <button className="btn btn-primary" onClick={handleAssign} disabled={loading || !userId}>
-            {loading ? 'Assigning...' : 'Confirm Assignment'}
+            {loading ? 'Assigning...' : isSelfSelected ? 'Confirm Self-Assignment' : 'Confirm Assignment'}
           </button>
         </>
       }
     >
-      <div style={{ marginBottom: 12, fontSize: 13, color: 'var(--text-secondary)' }}>
-        Assigning <strong>{asset.brand} {asset.model}</strong> ({asset.asset_type})
+      <div style={{ marginBottom: 14, fontSize: 13, color: 'var(--text-secondary)' }}>
+        Assigning <strong>{asset.brand} {asset.model}</strong> ({asset.asset_type}) • Tag: <span style={{ fontFamily: 'monospace', color: 'var(--accent)' }}>{asset.asset_tag}</span>
       </div>
 
+      {/* Quick Self-Assignment Card for Admin */}
+      {currentUser && (
+        <div style={{
+          marginBottom: 16,
+          padding: '12px 14px',
+          background: isSelfSelected ? 'rgba(99, 102, 241, 0.15)' : 'var(--bg-secondary)',
+          border: isSelfSelected ? '1.5px solid var(--accent)' : '1px solid var(--glass-border)',
+          borderRadius: 10,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: 10,
+          transition: 'all 0.2s ease',
+        }}>
+          <div>
+            <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--accent)', display: 'flex', alignItems: 'center', gap: 6 }}>
+              ⚡ Assign to Myself (Admin)
+            </div>
+            <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>
+              {currentUser.name} ({currentUser.user_code || currentUser.email}) [{currentUser.role}]
+            </div>
+          </div>
+          <button
+            type="button"
+            className={`btn btn-sm ${isSelfSelected ? 'btn-success' : 'btn-primary'}`}
+            onClick={() => setUserId(String(currentUser.id))}
+            style={{ whiteSpace: 'nowrap' }}
+          >
+            {isSelfSelected ? '✓ Selected (You)' : 'Assign to Me'}
+          </button>
+        </div>
+      )}
+
       <div className="form-group">
-        <label className="form-label">Search Employee</label>
+        <label className="form-label">Search Employee / User</label>
         <input
           className="form-control"
           placeholder="Filter by name, code, or department..."
@@ -203,7 +241,7 @@ function AssignModal({ asset, onClose, onDone }) {
       </div>
 
       <div className="form-group">
-        <label className="form-label">Select Employee ({filteredUsers.length} available) <span className="req">*</span></label>
+        <label className="form-label">Select Recipient ({filteredUsers.length} available) <span className="req">*</span></label>
         <select
           className="form-control"
           value={userId}
@@ -211,13 +249,186 @@ function AssignModal({ asset, onClose, onDone }) {
           size={6}
           style={{ maxHeight: 180 }}
         >
-          {filteredUsers.map(u => (
-            <option key={u.id} value={u.id}>
-              {u.name} ({u.user_code}) — {u.department || 'General'} [{u.role}]
-            </option>
-          ))}
+          {filteredUsers.map(u => {
+            const isMe = currentUser && String(u.id) === String(currentUser.id);
+            return (
+              <option key={u.id} value={u.id} style={{ fontWeight: isMe ? 700 : 400, color: isMe ? 'var(--accent)' : undefined }}>
+                {isMe ? '⭐ [YOU / ADMIN] ' : ''}
+                {u.name} ({u.user_code}) — {u.department || 'General'} [{u.role}]
+              </option>
+            );
+          })}
         </select>
       </div>
+    </Modal>
+  );
+}
+
+function CreateRepairTicketModal({ asset, onClose, onDone }) {
+  const [title, setTitle] = useState(`Repair: ${asset.brand} ${asset.model} (${asset.asset_tag})`);
+  const [description, setDescription] = useState('');
+  const [priority, setPriority] = useState('HIGH');
+  const [category, setCategory] = useState('Hardware');
+  const [markUnderRepair, setMarkUnderRepair] = useState(true);
+  const [assignedToId, setAssignedToId] = useState('');
+  const [supportUsers, setSupportUsers] = useState([]);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    usersAPI.list()
+      .then(r => setSupportUsers(r.data.filter(u => u.is_active && u.role === 'SUPPORT')))
+      .catch(() => {});
+  }, []);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!description.trim()) {
+      return toast.error('Please describe the issue or repair needed');
+    }
+    setLoading(true);
+    try {
+      const payload = {
+        title,
+        description,
+        category,
+        priority,
+        asset_id: asset.id,
+        mark_under_repair: markUnderRepair,
+        assigned_to_id: assignedToId ? parseInt(assignedToId, 10) : undefined,
+      };
+      const res = await ticketsAPI.create(payload);
+      toast.success(
+        `Repair ticket ${res.data.ticket_number} created successfully! ${markUnderRepair ? 'Asset marked as Under Repair.' : ''}`
+      );
+      onDone();
+    } catch (err) {
+      toast.error(err.response?.data?.detail || 'Failed to create repair ticket');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <Modal
+      title={`Create Repair / Maintenance Ticket: ${asset.asset_tag}`}
+      onClose={onClose}
+      footer={
+        <>
+          <button type="button" className="btn btn-secondary" onClick={onClose}>Cancel</button>
+          <button type="button" className="btn btn-primary" onClick={handleSubmit} disabled={loading}>
+            {loading ? 'Creating...' : 'Create Repair Ticket'}
+          </button>
+        </>
+      }
+    >
+      <form onSubmit={handleSubmit}>
+        <div style={{
+          background: 'var(--bg-secondary)',
+          border: '1px solid var(--glass-border)',
+          borderRadius: 8,
+          padding: '12px 14px',
+          marginBottom: 16,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+        }}>
+          <div>
+            <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)' }}>
+              {asset.brand} {asset.model} <span style={{ color: 'var(--accent)' }}>({asset.asset_tag})</span>
+            </div>
+            <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+              Type: {asset.asset_type} • Serial: {asset.serial_number}
+            </div>
+          </div>
+          <StatusBadge status={asset.status} />
+        </div>
+
+        <div className="form-group">
+          <label className="form-label">Ticket Title <span className="req">*</span></label>
+          <input
+            className="form-control"
+            value={title}
+            onChange={e => setTitle(e.target.value)}
+            required
+            minLength={3}
+            placeholder="Brief summary of the issue..."
+          />
+        </div>
+
+        <div className="form-group">
+          <label className="form-label">Defect Details & Repair Scope <span className="req">*</span></label>
+          <textarea
+            className="form-control"
+            rows={4}
+            value={description}
+            onChange={e => setDescription(e.target.value)}
+            placeholder="Describe the defect, damage, or maintenance required (e.g. Broken display, swollen battery, keyboard replacement, overheating, OS reinstall)..."
+            required
+            minLength={5}
+          />
+        </div>
+
+        <div className="form-row">
+          <div className="form-group">
+            <label className="form-label">Category</label>
+            <select
+              className="form-control"
+              value={category}
+              onChange={e => setCategory(e.target.value)}
+            >
+              {['Hardware', 'Software', 'Other'].map(c => <option key={c} value={c}>{c}</option>)}
+            </select>
+          </div>
+          <div className="form-group">
+            <label className="form-label">Priority</label>
+            <select
+              className="form-control"
+              value={priority}
+              onChange={e => setPriority(e.target.value)}
+            >
+              {['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'].map(p => <option key={p} value={p}>{p}</option>)}
+            </select>
+          </div>
+        </div>
+
+        <div className="form-group">
+          <label className="form-label">Assign to Support Specialist (Optional)</label>
+          <select
+            className="form-control"
+            value={assignedToId}
+            onChange={e => setAssignedToId(e.target.value)}
+          >
+            <option value="">— Unassigned (Available in Support Queue) —</option>
+            {supportUsers.map(u => (
+              <option key={u.id} value={u.id}>
+                {u.name} ({u.user_code}) — {u.department || 'Support'}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div style={{
+          marginTop: 14,
+          padding: '10px 14px',
+          background: 'rgba(245, 158, 11, 0.08)',
+          border: '1px solid rgba(245, 158, 11, 0.25)',
+          borderRadius: 8,
+          display: 'flex',
+          alignItems: 'center',
+          gap: 10,
+        }}>
+          <input
+            type="checkbox"
+            id="markUnderRepairCheck"
+            checked={markUnderRepair}
+            onChange={e => setMarkUnderRepair(e.target.checked)}
+            style={{ width: 16, height: 16, cursor: 'pointer' }}
+          />
+          <label htmlFor="markUnderRepairCheck" style={{ margin: 0, fontSize: 13, fontWeight: 600, color: 'var(--warning)', cursor: 'pointer' }}>
+            Set asset status to UNDER_REPAIR in inventory
+          </label>
+        </div>
+      </form>
     </Modal>
   );
 }
@@ -238,6 +449,7 @@ export default function AssetsPage() {
   const [showCreate, setShowCreate] = useState(false);
   const [editAsset, setEditAsset] = useState(null);
   const [assignAsset, setAssignAsset] = useState(null);
+  const [repairAsset, setRepairAsset] = useState(null);
   const [saving, setSaving] = useState(false);
 
   const load = () => {
@@ -327,6 +539,17 @@ export default function AssetsPage() {
       load();
     } catch (err) {
       toast.error(err.response?.data?.detail || 'Failed to return asset');
+    }
+  };
+
+  const handleMarkRepaired = async (asset) => {
+    if (!window.confirm(`Mark ${asset.asset_tag} (${asset.brand} ${asset.model}) as repaired and return it to Available inventory?`)) return;
+    try {
+      await assetsAPI.update(asset.id, { status: 'AVAILABLE' });
+      toast.success(`Asset ${asset.asset_tag} is now AVAILABLE in inventory!`);
+      load();
+    } catch (err) {
+      toast.error(err.response?.data?.detail || 'Failed to update asset status');
     }
   };
 
@@ -537,29 +760,65 @@ export default function AssetsPage() {
                               <div className="flex gap-2" style={{ justifyContent: 'flex-end' }}>
                                 <button
                                   className="btn btn-sm btn-secondary"
-                                  title="Edit Asset"
+                                  title="Edit Asset Details"
                                   onClick={() => setEditAsset(a)}
                                 >
                                   <Edit2 size={13} />
                                 </button>
-                                {a.status === 'AVAILABLE' && (
+
+                                {/* Create Ticket for Repair (available in inventory or assigned) */}
+                                {['AVAILABLE', 'ASSIGNED'].includes(a.status) && (
+                                  <button
+                                    className="btn btn-sm btn-warning"
+                                    style={{
+                                      background: 'rgba(245, 158, 11, 0.12)',
+                                      color: '#f59e0b',
+                                      borderColor: 'rgba(245, 158, 11, 0.35)',
+                                    }}
+                                    title="Create Ticket for Repair / Maintenance"
+                                    onClick={() => setRepairAsset(a)}
+                                  >
+                                    <Wrench size={13} />
+                                  </button>
+                                )}
+
+                                {/* If Under Repair: Mark as Repaired & Make Available */}
+                                {a.status === 'UNDER_REPAIR' && (
                                   <button
                                     className="btn btn-sm btn-success"
-                                    title="Assign Asset to Employee"
+                                    style={{
+                                      background: 'rgba(16, 185, 129, 0.15)',
+                                      color: '#10b981',
+                                      borderColor: 'rgba(16, 185, 129, 0.35)',
+                                    }}
+                                    title="Mark Repaired (Return to Available Inventory)"
+                                    onClick={() => handleMarkRepaired(a)}
+                                  >
+                                    <CheckCircle size={13} />
+                                  </button>
+                                )}
+
+                                {/* Assign Asset to Employee or Admin */}
+                                {(a.status === 'AVAILABLE' || a.status === 'UNDER_REPAIR') && (
+                                  <button
+                                    className="btn btn-sm btn-success"
+                                    title={a.status === 'UNDER_REPAIR' ? 'Assign Repaired Asset' : 'Assign Asset (to Employee or Self)'}
                                     onClick={() => setAssignAsset(a)}
                                   >
                                     <UserCheck size={13} />
                                   </button>
                                 )}
+
                                 {a.status === 'ASSIGNED' && (
                                   <button
                                     className="btn btn-sm btn-secondary"
-                                    title="Return Asset"
+                                    title="Return Asset to Inventory"
                                     onClick={() => handleReturn(a)}
                                   >
                                     <UserX size={13} />
                                   </button>
                                 )}
+
                                 {a.status !== 'RETIRED' && (
                                   <button
                                     className="btn btn-sm btn-danger"
@@ -651,9 +910,18 @@ export default function AssetsPage() {
         </Modal>
       )}
 
+      {repairAsset && (
+        <CreateRepairTicketModal
+          asset={repairAsset}
+          onClose={() => setRepairAsset(null)}
+          onDone={() => { setRepairAsset(null); load(); }}
+        />
+      )}
+
       {assignAsset && (
         <AssignModal
           asset={assignAsset}
+          currentUser={auth?.user}
           onClose={() => setAssignAsset(null)}
           onDone={() => { setAssignAsset(null); load(); }}
         />

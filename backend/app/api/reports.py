@@ -76,6 +76,23 @@ def export_tickets_csv(
     )
 
 
+@router.get("/assets/export-csv")
+def export_assets_csv(
+    current_user: User = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    """
+    Streams complete asset inventory records as CSV without loading all into memory.
+    """
+    service = ReportService(db)
+    generator = service.stream_assets_csv()
+    return StreamingResponse(
+        generator,
+        media_type="text/csv",
+        headers={"Content-Disposition": "attachment; filename=asset_inventory_report.csv"},
+    )
+
+
 @router.get("/external-scenario-test")
 def external_scenario_test(
     scenario: str = Query("success"),

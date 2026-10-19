@@ -21,29 +21,178 @@ const CATEGORIES = ['Hardware', 'Software', 'Network', 'Access', 'Other'];
 const PRIORITIES = ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'];
 const STATUSES = ['OPEN', 'ASSIGNED', 'IN_PROGRESS', 'RESOLVED', 'CLOSED', 'ESCALATED'];
 
-function TicketForm({ onSave, onClose, loading, userAssets = [] }) {
-  const [form, setForm] = useState({ title: '', description: '', category: '', priority: '', asset_id: '' });
+function TicketForm({ onSave, onClose, loading, userAssets = [], isAdmin = false }) {
+  const [form, setForm] = useState({
+    title: '',
+    description: '',
+    category: '',
+    priority: '',
+    asset_id: '',
+    mark_under_repair: false,
+    assigned_to_id: '',
+  });
+  const [assetFilter, setAssetFilter] = useState('ALL');
+  const [supportUsers, setSupportUsers] = useState([]);
+
+  useEffect(() => {
+    if (isAdmin) {
+      usersAPI.list()
+        .then(r => setSupportUsers(r.data.filter(u => u.is_active && u.role === 'SUPPORT')))
+        .catch(() => {});
+    }
+  }, [isAdmin]);
+
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
+
+  const filteredAssets = userAssets.filter(a => {
+    if (!isAdmin) return true;
+    if (assetFilter === 'AVAILABLE') return a.status === 'AVAILABLE';
+    if (assetFilter === 'ASSIGNED') return a.status === 'ASSIGNED';
+    if (assetFilter === 'UNDER_REPAIR') return a.status === 'UNDER_REPAIR';
+    return true;
+  });
+
+  const selectedAsset = userAssets.find(a => String(a.id) === String(form.asset_id));
+
+  const handleAssetSelect = (assetId) => {
+    set('asset_id', assetId);
+    const chosen = userAssets.find(a => String(a.id) === String(assetId));
+    if (chosen && isAdmin) {
+      if (chosen.status === 'AVAILABLE') {
+        set('mark_under_repair', true);
+        if (!form.category) set('category', 'Hardware');
+        if (!form.priority) set('priority', 'HIGH');
+      }
+    }
+  };
+
   return (
     <form onSubmit={e => { e.preventDefault(); onSave(form); }}>
       <div className="form-group">
         <label className="form-label">Title <span className="req">*</span></label>
-        <input className="form-control" value={form.title} onChange={e => set('title', e.target.value)} placeholder="Brief description of the issue" required minLength={3} />
+        <input
+          className="form-control"
+          value={form.title}
+          onChange={e => set('title', e.target.value)}
+          placeholder="Brief description of the issue or repair need"
+          required
+          minLength={3}
+        />
       </div>
+
       <div className="form-group">
         <label className="form-label">Description <span className="req">*</span></label>
-        <textarea className="form-control" rows={4} value={form.description} onChange={e => set('description', e.target.value)} placeholder="Provide full details of the issue..." required minLength={5} />
+        <textarea
+          className="form-control"
+          rows={4}
+          value={form.description}
+          onChange={e => set('description', e.target.value)}
+          placeholder="Provide full details of the issue, hardware defect, or repair required..."
+          required
+          minLength={5}
+        />
       </div>
+
       {userAssets.length > 0 && (
         <div className="form-group">
-          <label className="form-label">Related Asset</label>
-          <select className="form-control" value={form.asset_id} onChange={e => set('asset_id', e.target.value)}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+            <label className="form-label" style={{ margin: 0 }}>
+              {isAdmin ? 'Select Inventory Asset (Available / Assigned)' : 'Related Asset'}
+            </label>
+            {isAdmin && (
+              <div style={{ display: 'flex', gap: 4 }}>
+                <button
+                  type="button"
+                  className={`btn btn-sm ${assetFilter === 'AVAILABLE' ? 'btn-primary' : 'btn-secondary'}`}
+                  style={{ fontSize: 11, padding: '2px 8px' }}
+                  onClick={() => setAssetFilter(assetFilter === 'AVAILABLE' ? 'ALL' : 'AVAILABLE')}
+                >
+                  Only Available ({userAssets.filter(a => a.status === 'AVAILABLE').length})
+                </button>
+                <button
+                  type="button"
+                  className={`btn btn-sm ${assetFilter === 'ALL' ? 'btn-primary' : 'btn-secondary'}`}
+                  style={{ fontSize: 11, padding: '2px 8px' }}
+                  onClick={() => setAssetFilter('ALL')}
+                >
+                  All ({userAssets.length})
+                </button>
+              </div>
+            )}
+          </div>
+
+          <select
+            className="form-control"
+            value={form.asset_id}
+            onChange={e => handleAssetSelect(e.target.value)}
+          >
             <option value="">— Not specific to an asset —</option>
-            {userAssets.map(a => <option key={a.id} value={a.id}>{a.brand} {a.model} ({a.asset_tag})</option>)}
+            {filteredAssets.map(a => (
+              <option key={a.id} value={a.id}>
+                [{a.status}] {a.brand} {a.model} ({a.asset_tag}) {a.assigned_user ? `— Assigned to ${a.assigned_user.name}` : '— In Inventory'}
+              </option>
+            ))}
           </select>
         </div>
       )}
+
+      {/* Selected Asset Details & Repair Transition Options */}
+      {selectedAsset && isAdmin && (
+        <div style={{
+          marginBottom: 14,
+          padding: '10px 14px',
+          background: 'rgba(99, 102, 241, 0.08)',
+          border: '1px solid rgba(99, 102, 241, 0.25)',
+          borderRadius: 8,
+          fontSize: 13,
+        }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+            <div>
+              <span style={{ color: 'var(--text-muted)' }}>Selected Asset:</span>{' '}
+              <strong>{selectedAsset.brand} {selectedAsset.model}</strong> ({selectedAsset.asset_tag})
+            </div>
+            <span className="badge badge-indigo">{selectedAsset.status}</span>
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 8 }}>
+            <input
+              type="checkbox"
+              id="ticketMarkUnderRepairCheck"
+              checked={form.mark_under_repair}
+              onChange={e => set('mark_under_repair', e.target.checked)}
+              style={{ width: 16, height: 16, cursor: 'pointer' }}
+            />
+            <label
+              htmlFor="ticketMarkUnderRepairCheck"
+              style={{ margin: 0, fontSize: 13, fontWeight: 600, color: 'var(--warning)', cursor: 'pointer' }}
+            >
+              Mark asset status as UNDER_REPAIR (Send for Repair/Maintenance)
+            </label>
+          </div>
+        </div>
+      )}
+
+      {/* Direct Assignment Option for Admin */}
+      {isAdmin && supportUsers.length > 0 && (
+        <div className="form-group">
+          <label className="form-label">Assign to Support Specialist (Optional)</label>
+          <select
+            className="form-control"
+            value={form.assigned_to_id}
+            onChange={e => set('assigned_to_id', e.target.value)}
+          >
+            <option value="">— Auto-queue for Support Team —</option>
+            {supportUsers.map(u => (
+              <option key={u.id} value={u.id}>
+                {u.name} ({u.user_code}) — {u.department || 'Support'}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
+
       <div className="form-hint" style={{ marginBottom: 12 }}>💡 Leave Category & Priority blank for automatic classification</div>
+
       <div className="form-row">
         <div className="form-group">
           <label className="form-label">Category</label>
@@ -60,9 +209,12 @@ function TicketForm({ onSave, onClose, loading, userAssets = [] }) {
           </select>
         </div>
       </div>
+
       <div className="modal-footer" style={{ padding: 0, marginTop: 8 }}>
         <button type="button" className="btn btn-secondary" onClick={onClose}>Cancel</button>
-        <button type="submit" className="btn btn-primary" disabled={loading}>{loading ? 'Creating...' : 'Create Ticket'}</button>
+        <button type="submit" className="btn btn-primary" disabled={loading}>
+          {loading ? 'Creating...' : 'Create Ticket'}
+        </button>
       </div>
     </form>
   );
@@ -261,8 +413,10 @@ export default function TicketsPage() {
   const [userAssets, setUserAssets] = useState([]);
 
   useEffect(() => {
-    if (!auth.isAdminOrSupport && auth.user) {
-      assetsAPI.list().then(r => setUserAssets(r.data.filter(a => a.assigned_to_id === auth.user.id))).catch(() => {});
+    if (auth.isAdminOrSupport) {
+      assetsAPI.list().then(r => setUserAssets(r.data || [])).catch(() => {});
+    } else if (auth.user) {
+      assetsAPI.list().then(r => setUserAssets((r.data || []).filter(a => a.assigned_to_id === auth.user.id))).catch(() => {});
     }
   }, [auth.isAdminOrSupport, auth.user]);
 
@@ -299,10 +453,15 @@ export default function TicketsPage() {
       if (!payload.category) delete payload.category;
       if (!payload.priority) delete payload.priority;
       if (!payload.asset_id) delete payload.asset_id;
-      else payload.asset_id = parseInt(payload.asset_id);
+      else payload.asset_id = parseInt(payload.asset_id, 10);
+      if (!payload.assigned_to_id) delete payload.assigned_to_id;
+      else payload.assigned_to_id = parseInt(payload.assigned_to_id, 10);
+      if (!payload.mark_under_repair) delete payload.mark_under_repair;
       
       const res = await ticketsAPI.create(payload);
-      toast.success(`Ticket ${res.data.ticket_number} created! Auto-classified as ${res.data.category} / ${res.data.priority}`);
+      toast.success(
+        `Ticket ${res.data.ticket_number} created! Auto-classified as ${res.data.category} / ${res.data.priority}${payload.mark_under_repair ? ' (Asset set to UNDER_REPAIR)' : ''}`
+      );
       setShowCreate(false);
       load();
     } catch (err) {
@@ -459,7 +618,13 @@ export default function TicketsPage() {
 
       {showCreate && (
         <Modal title="Create New Ticket" onClose={() => setShowCreate(false)}>
-          <TicketForm onSave={handleCreate} onClose={() => setShowCreate(false)} loading={saving} userAssets={userAssets} />
+          <TicketForm
+            onSave={handleCreate}
+            onClose={() => setShowCreate(false)}
+            loading={saving}
+            userAssets={userAssets}
+            isAdmin={auth.isAdmin}
+          />
         </Modal>
       )}
       {detail && <TicketDetailModal ticket={detail} onClose={() => setDetail(null)} onAction={handleAction} auth={auth} />}

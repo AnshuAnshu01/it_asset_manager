@@ -48,9 +48,11 @@ def assign_asset(db: Session, asset: Asset, user: User, notes: Optional[str] = N
         raise InvalidStatusTransitionError(f"Asset {asset.asset_tag} is already assigned")
     asset.status = AssetStatus.ASSIGNED.value
     asset.assigned_to_id = user.id
+    assigned_by_id = actor.id if actor else None
     assignment = AssetAssignment(
         asset_id=asset.id,
         user_id=user.id,
+        assigned_by_id=assigned_by_id,
         assigned_date=datetime.utcnow(),
         notes=notes,
     )

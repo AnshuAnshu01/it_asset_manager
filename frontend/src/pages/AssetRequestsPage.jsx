@@ -586,16 +586,14 @@ export default function AssetRequestsPage() {
               <RefreshCw size={16} />
             </button>
 
-            {/* Non-admin users get the + Request Asset button */}
-            {!isAdmin && (
-              <button
-                type="button"
-                className="btn btn-primary"
-                onClick={() => setShowRequestModal(true)}
-              >
-                <Plus size={16} /> Request Asset
-              </button>
-            )}
+            <button
+              type="button"
+              className="btn btn-primary"
+              onClick={() => setShowRequestModal(true)}
+              title="Submit a new hardware asset request"
+            >
+              <Plus size={16} /> Request Asset
+            </button>
           </div>
         </div>
 

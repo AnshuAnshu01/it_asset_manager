@@ -9,6 +9,8 @@ class TicketCreate(BaseModel):
     category: Optional[str] = None
     priority: Optional[str] = None
     asset_id: Optional[Union[int, str]] = None
+    mark_under_repair: Optional[bool] = False
+    assigned_to_id: Optional[int] = None
 
     @field_validator("category", mode="before")
     @classmethod
